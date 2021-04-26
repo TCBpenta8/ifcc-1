@@ -39,7 +39,7 @@ def eval_split(model, data_loader, device=None):
     with torch.no_grad():
         model.eval()
         y_true5, y_true14, y_score5, y_score14 = [], [], [], []
-        for _, inp, targ, _, _, _ in data_loader:
+        for _, inp, targ, _ in data_loader:
             inp, _ = data_cuda(inp, targ, device=device, non_blocking=False)
             out = model(inp)
             probs = softmax(out.permute(0, 2, 1)[:, :, 1:3], dim=-1)

@@ -7,6 +7,7 @@ from clinicgen.data.chexpert import CheXpertData
 from clinicgen.data.flickr30k import Flickr30kData
 from clinicgen.data.mimiccxr import MIMICCXRData
 from clinicgen.data.openi import OpenIData
+from clinicgen.data.iuxray import IUXRAYData
 
 
 class Data:
@@ -88,7 +89,7 @@ class Data:
                                                  dump_dir=train_dump, filter_reports=filter_reports)
             target_transform = MIMICCXRData.get_target_transform(word_indexes, 'validation', sentsplitter, tokenizer,
                                                                  textfilter, tokenfilter, max_sent, max_word)
-            datasets['validation'] = MIMICCXRData(path, section=section, split='validate',
+            datasets['validation'] = MIMICCXRData(path, section=section, split='val',
                                                   target_transform=target_transform, cache_image=cache,
                                                   cache_text=cache, multi_image=multi_image, img_mode=img_mode,
                                                   single_image_doc=single_test, dump_dir=val_dump,
@@ -99,6 +100,29 @@ class Data:
                                             cache_image=cache, cache_text=True, multi_image=multi_image,
                                             img_mode=img_mode, single_image_doc=single_test, dump_dir=test_dump,
                                             filter_reports=filter_reports)
+        #Edit Modification: add iu-xray
+        elif corpus == 'iu-xray':
+            if not test_only:
+                target_transform = IUXRAYData.get_target_transform(word_indexes, 'train', sentsplitter, tokenizer,
+                                                                     textfilter, tokenfilter, max_sent, max_word)
+                datasets['train'] = IUXRAYData(path, section=section, split='train',
+                                                 target_transform=target_transform, cache_image=cache, cache_text=cache,
+                                                 multi_image=multi_image, img_mode=img_mode, img_augment=img_augment,
+                                                 dump_dir=train_dump, filter_reports=filter_reports)
+            target_transform = IUXRAYData.get_target_transform(word_indexes, 'validation', sentsplitter, tokenizer,
+                                                               textfilter, tokenfilter, max_sent, max_word)
+            datasets['validation'] = IUXRAYData(path, section=section, split='val',
+                                                  target_transform=target_transform, cache_image=cache,
+                                                  cache_text=cache, multi_image=multi_image, img_mode=img_mode,
+                                                  single_image_doc=single_test, dump_dir=val_dump,
+                                                  filter_reports=filter_reports)
+            target_transform = IUXRAYData.get_target_transform(word_indexes, 'test', sentsplitter, tokenizer,
+                                                                 textfilter, tokenfilter, max_sent, max_word)
+            datasets['test'] = IUXRAYData(path, section=section, split='test', target_transform=target_transform,
+                                            cache_image=cache, cache_text=True, multi_image=multi_image,
+                                            img_mode=img_mode, single_image_doc=single_test, dump_dir=test_dump,
+                                            filter_reports=filter_reports)
+
         elif corpus == 'open-i':
             if not test_only:
                 target_transform = OpenIData.get_target_transform(word_indexes, 'train', sentsplitter, tokenizer,
@@ -158,6 +182,15 @@ class Data:
             transform = MIMICCXRData.get_target_transform({}, split) if target_transform else None
             data = MIMICCXRData(params['data'], params['section'], split=split, target_transform=transform,
                                 filter_reports=True, multi_image=params['multi_image'], dump_dir=dump_dir)
+
+        #edit
+        elif params['corpus'] == 'iu-xray':
+            if split == 'val':
+                split = 'validate'
+            transform = IUXRAYData.get_target_transform({}, split) if target_transform else None
+            data = IUXRAYData(params['data'], params['section'], split=split, target_transform=transform,
+                                filter_reports=True, multi_image=params['multi_image'], dump_dir=dump_dir)
+
         elif params['corpus'] == 'open-i':
             if split == 'val':
                 split = 'validation'

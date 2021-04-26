@@ -186,7 +186,8 @@ def parse_args():
     parser.add_argument('--clip-grad', type=float, default=None, help='Clip gradients')
     parser.add_argument('--cnnrnnrnn-mlp-proj', dest='cnnrnnrnn_simple_proj', default=True, action='store_false', help='An MLP visual feature projection for CNNRNNRNN')
     parser.add_argument('--cnnrnnrnn-topic-state', default=False, action='store_true', help='Use topic as an initial word LSTM state')
-    parser.add_argument('--corpus', type=str, default='a', choices=['a', 'flickr30k', 'mimic-cxr', 'open-i'], help='Corpus name')
+    #edit
+    parser.add_argument('--corpus', type=str, default='a', choices=['a', 'flickr30k', 'mimic-cxr', 'open-i','iu-xray'], help='Corpus name')
     parser.add_argument('--cuda', default=False, action='store_true', help='Use GPU')
     parser.add_argument('--entity-match', type=str, default=None, help='A path to reference entities')
     parser.add_argument('--entity-mode',type=str, default='nli-f', help='Entity match mode')

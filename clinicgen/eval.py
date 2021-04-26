@@ -147,14 +147,27 @@ class EntityMatcher:
             texts1, texts2 = [], []
             for i, rid in enumerate(rids):
                 buf = []
-                rid = rid.split(self.ID_SEPARATOR)[0]
+                # rid = rid.split(self.ID_SEPARATOR)[0]
+                # print('self.sentences',self.sentences)
+                try:
+                    # print('current rid: ',rid) # ...
+                    # print('current type rid: ',type(rid)) # tenser if mimic; str if iu xray
+                    if isinstance(rid, str):  # modification: cast rid to list
+                        rid = str(rid) # .split(self.ID_SEPARATOR)[0]) # edit
+                    else:
+                        rid = str(rid.item()) # .split(self.ID_SEPARATOR)[0]) # edit
+                except:
+                    raise Exception('rid {} has issue. Type: {}'.format(rid, type(rid)))
                 for sid in sorted(self.sentences[rid].keys()):
                     buf.append(self.sentences[rid][sid])
                 texts1.append('\n'.join(buf))
                 texts2.append(hypo_sents[i])
+
+                # raise Exception('breakpointt in eval.py')
             _, _, _, stats = self.nli.sentence_scores_bert_score(texts1, texts2, label='all', prf=self.prf)
             for i in range(len(rids)):
-                rid, rs = rids[i], stats[i]
+                #edit. modification: ignore the rid since wont be used
+                rs = stats[i]
                 ref_nli[i] = {}
                 for sid, tup in rs['scores'][0].items():
                     pred, _ = self._nli_label(tup[0])
@@ -167,7 +180,16 @@ class EntityMatcher:
         scores_e, scores_n = [], []
         for i, rid in enumerate(rids):
             hypo_entities = hypos_entities[i]
-            rid = rid.split(self.ID_SEPARATOR)[0]
+            # rid = rid.split(self.ID_SEPARATOR)[0]
+            try:
+                # print('current rid: ',rid) # ...
+                # print('current type rid: ',type(rid)) # tenser if mimic; str if iu xray
+                if isinstance(rid, str):  # modification: cast rid to list
+                    rid = str(rid)  # .split(self.ID_SEPARATOR)[0]) # edit
+                else:
+                    rid = str(rid.item())  # .split(self.ID_SEPARATOR)[0]) # edit
+            except:
+                raise Exception('rid {} , type :{} :has issue on Calculate scores stage'.format(rid, type(rid)))
             ref_entities = self.entities[rid]
             # precision
             match_e, match_n, total_pr = 0, 0, 0
@@ -649,6 +671,7 @@ class GenEval:
                 if pbar is not None and tqdm_interval >= eval_interval:
                     pbar.update(tqdm_interval)
                     tqdm_interval = 0
+
             if pbar is not None:
                 if tqdm_interval > 0:
                     pbar.update(tqdm_interval)
@@ -674,7 +697,13 @@ class GenEval:
         with gzip.open(load_path, 'rt', encoding='utf-8') as f:
             for line in f:
                 entry = line.rstrip().split(' ')
+
                 rid = entry[0].split(self.ID_SEPARATOR)[0]
+                # try:
+                #   rid = str(rid.item())# .split(self.ID_SEPARATOR)[0])
+                # except:
+                #   raise Exception('rid {} has issue'.format(rid))
+
                 if rid not in reps:
                     reps[rid] = OrderedDict()
                 reps[rid][entry[0]] = ' '.join(entry[2:])

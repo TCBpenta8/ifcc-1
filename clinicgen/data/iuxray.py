@@ -13,20 +13,19 @@ from clinicgen.data.image2text import _CaptioningData, _RadiologyReportData
 import json
 
 """
-A brief view of a document in the customized dataset.
+A brief view of a document in the IU XRAY customized dataset.
 
-{'id': '02aa804e-bde0afdd-112c0b34-7bc16630-4e384014',
- 'image_path': ['p10/p10000032/s50414267/02aa804e-bde0afdd-112c0b34-7bc16630-4e384014.jpg'],
- 'report': 'There is no focal consolidation, pleural effusion or pneumothorax.  Bilateral\n nodular opacities that most likely represent nipple shadows. The\n cardiomediastinal silhouette is normal.  Clips project over the left lung,\n potentially within the breast. The imaged upper abdomen is unremarkable.\n Chronic deformity of the posterior left sixth and seventh ribs are noted.',
- 'split': 'train',
- 'study_id': 50414267,
- 'subject_id': 10000032}
+
+ {"id": "CXR2384_IM-0942", 
+ "report": "The heart size and pulmonary vascularity appear within normal limits. A large hiatal hernia is noted. The lungs are free of focal airspace disease. No pneumothorax or pleural effusion is seen. Degenerative changes are present in the spine.",
+  "image_path": ["CXR2384_IM-0942/0.png", "CXR2384_IM-0942/1.png"], 
+  "split": "train"}
 
 """
 
 
-class MIMICCXRData(_RadiologyReportData):
-    IMAGE_NUM = 276778
+class IUXRAYData(_RadiologyReportData):
+    IMAGE_NUM = 6091
     LABEL_CHEXPERT = 'chexpert'
     CHEXPERT_MAP = [13, 4, 1, 7, 6, 3, 2, 9, 0, 10, 8, 11, 5, 12]
 
@@ -39,14 +38,14 @@ class MIMICCXRData(_RadiologyReportData):
                  multi_image=1, img_mode='center', img_augment=False, single_image_doc=False, dump_dir=None,
                  filter_reports=True):
         if not cache_text:
-            raise ValueError('MIMIC-CXR data only supports cached texts')
+            raise ValueError('IU-XRAY data only supports cached texts')
         super().__init__(root, section, split, cache_image, cache_text, multi_image=multi_image,
                          single_image_doc=single_image_doc, dump_dir=dump_dir)
-        pre_transform, self.transform = MIMICCXRData.get_transform(cache_image, img_mode, img_augment)
+        pre_transform, self.transform = IUXRAYData.get_transform(cache_image, img_mode, img_augment)
         self.target_transform = target_transform
         self.chexpert_labels_path = os.path.join(root, 'mimic-cxr-jpg', '2.0.0', self.CHEXPERT_PATH)
 
-        annotation = json.loads(open('/content/mimic_cxr/annotation.json', 'r').read())
+        annotation = json.loads(open('/content/iu_xray_resized/annotation.json', 'r').read())
         texts_train = annotation['train']
         texts_val = annotation['val']
         texts_test = annotation['test']
@@ -70,7 +69,7 @@ class MIMICCXRData(_RadiologyReportData):
 
         sections = {}
         for row in self.texts:
-            study_id = 's' + str(row['study_id'])
+            study_id = str(row['id']) #edited
             report = {'report': row['report']}
             sections[study_id] = gzip.compress(pickle.dumps(report))  # ? assume row[0] is the study_id
         # assume done
@@ -82,15 +81,16 @@ class MIMICCXRData(_RadiologyReportData):
             count = 0
             for row in self.texts:
                 if split is None or split == row['split']:  # split
-                    did = row['id']  # dicom_id
-                    sid = row['study_id']  # study_id
-                    pid = row['subject_id']  # subject_id -> patient_id
-                    self.ids.append(did)
+                    did = row['id']  # dicom_id  #not used
+                    sid = row['id']  # study_id #edited
+                    pid = row['id']  # subject_id -> patient_id  #not used 
+                    self.ids.append(did) #not used
                     self.doc_ids.append(sid)
 
                     image_path = row['image_path'][0]
 
                     # image
+                    #Todo: image_path in iu xray is list of 2 items
                     image = os.path.join(root, 'images', image_path)  # todo: modify the path
                     if cache_image:
                         image = self.bytes_image(image, pre_transform)
@@ -100,7 +100,7 @@ class MIMICCXRData(_RadiologyReportData):
                     #                       's{0}.txt'.format(sid))
 
                     if cache_text:
-                        sid = 's' + str(sid)
+                        sid =  str(sid) #edited
                         report = sections[sid] if sid in sections else gzip.compress(pickle.dumps({}))
                         if sid not in sections:
                             print('{} not in sections'.format(sid))
@@ -139,7 +139,7 @@ class MIMICCXRData(_RadiologyReportData):
 
     @classmethod
     def get_transform(cls, cache_image=False, mode='center', augment=False):
-        return cls._transform(cache_image, 224, mode, augment)
+        return cls._transform(cache_image, 224, mode, augment) #what is 224?
 
     def compare_texts(self, text1, text2):
         if 'study' in text1 and 'study' in text2:
