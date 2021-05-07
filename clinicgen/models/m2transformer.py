@@ -371,37 +371,42 @@ class M2Transformer(_TransformerCaptioner):
         return v
 
     def image_features_with_mask(self, x, model):
-        mask = (x.detach().sum(dim=(1, 2, 3)) != 0).type(torch.float).unsqueeze(dim=-1).unsqueeze(dim=-1)
+        '''
+        Args:
+            x (bs, 3, 3, 224, 224)
+            ...
+        '''
+        mask = (x.detach().sum(dim=(1, 2, 3)) != 0).type(torch.float).unsqueeze(dim=-1).unsqueeze(dim=-1) # (72, 1, 1)
         if self.multi_image > 1:
             nz = mask.squeeze().nonzero().squeeze()
-            x_nz = x[nz]
+            x_nz = x[nz] #
             if len(nz.shape) == 0:
                 x_nz = x_nz.unsqueeze(dim=0)
         else:
             x_nz, nz = x, None
         # Image features
-        x_nz = model(x_nz)
-        x_nz = x_nz.flatten(start_dim=-2, end_dim=-1)
-        x_nz = x_nz.permute(0, 2, 1)
-        x_nz = relu(self.image_proj_l(x_nz))
+        x_nz = model(x_nz) # (bs, 3, 224, 224) => (bs, 1024, 7, 7)
+        x_nz = x_nz.flatten(start_dim=-2, end_dim=-1) # (bs, 1024, 49)
+        x_nz = x_nz.permute(0, 2, 1) # (bs, 49, 1024)
+        x_nz = relu(self.image_proj_l(x_nz)) # (bs, 49, 512)
         x_nz = self.dropout(x_nz)
         if self.layer_norm is not None:
             x_nz = self.layer_norm(x_nz)
         # Transformer encoder
-        x_nz = x_nz.permute(1, 0, 2)
-        x_nz = self.encoder(x_nz)
-        x_nz = x_nz.permute(1, 2, 0, 3)
+        x_nz = x_nz.permute(1, 0, 2) # (49, bs, 512)
+        x_nz = self.encoder(x_nz) # (49, 1, bs, 512)
+        x_nz = x_nz.permute(1, 2, 0, 3) # (1, bs, 49, 512)
         xms = []
         if self.multi_image > 1:
             for i in range(self.encoder.num_layers):
-                xm = x.new_zeros(x.shape[0], x_nz.shape[2], x_nz.shape[3])
+                xm = x.new_zeros(x.shape[0], x_nz.shape[2], x_nz.shape[3]) # (bs, 49, 512)
                 xm[nz] += x_nz[i]
                 xms.append(xm)
         else:
             for i in range(self.encoder.num_layers):
                 xms.append(x_nz[i])
         x = torch.stack(xms, dim=1)
-        return x, mask
+        return x, mask # (bs * numImage, 1, 49, 512), (bs * numImage, 1, 1)
 
     def proc_word_sequence(self, wt, v, mask=None):
         e = self.embeddings(wt)

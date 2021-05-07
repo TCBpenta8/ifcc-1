@@ -197,11 +197,44 @@ class _TransformerCaptioner(_Image2Text):
         return words, lprobs2
 
 
-class TransformerSimpleCaptioner(_TransformerCaptioner):
+class TransformerMaxDecoderLayer(TransformerDecoderLayer):
+    def forward(self, tgt, memory, tgt_mask=None, memory_mask=None, tgt_key_padding_mask=None,
+                memory_key_padding_mask=None):
+        tgt2 = self.self_attn(tgt, tgt, tgt, attn_mask=tgt_mask, key_padding_mask=tgt_key_padding_mask)[0]
+        tgt = tgt + self.dropout1(tgt2)
+        tgt = self.norm1(tgt)
+        if len(memory.shape) == 4:
+            tgt_stack = []
+            for i in range(memory.shape[0]):
+                tgt2 = self.multihead_attn(tgt, memory[i], memory[i], attn_mask=memory_mask,
+                                           key_padding_mask=memory_key_padding_mask)[0]
+                tgt_stack.append(tgt2)
+            tgt_stack = torch.stack(tgt_stack, dim=0)
+            tgt2, _ = torch.max(tgt_stack, dim=0)
+        else:
+            tgt2 = self.multihead_attn(tgt, memory, memory, attn_mask=memory_mask,
+                                       key_padding_mask=memory_key_padding_mask)[0]
+        tgt = tgt + self.dropout2(tgt2)
+        tgt = self.norm2(tgt)
+        if hasattr(self, "activation"):
+            tgt2 = self.linear2(self.dropout(self.activation(self.linear1(tgt))))
+        else:  # for backward compatibility
+            tgt2 = self.linear2(self.dropout(relu(self.linear1(tgt))))
+        tgt = tgt + self.dropout3(tgt2)
+        tgt = self.norm3(tgt)
+        return tgt
+
+
+
+
+
+
+
+class Visual_GPTSimpleCaptioner(_TransformerCaptioner):
     def __init__(self, embeddings, feat_dim=512, max_word=32, multi_image=1, image_pe=True, layer_norm=False,
                  num_layers=6, teacher_forcing=False, image_model=None, image_pretrained=None, finetune_image=False,
                  image_finetune_epoch=None, rl_opts=None, word_idxs=None, device='gpu', verbose=False):
-        super(TransformerSimpleCaptioner, self).__init__(embeddings, feat_dim, max_word, multi_image, image_pe,
+        super(Visual_GPTSimpleCaptioner, self).__init__(embeddings, feat_dim, max_word, multi_image, image_pe,
                                                          layer_norm, teacher_forcing, image_model, image_pretrained,
                                                          finetune_image, image_finetune_epoch, rl_opts, word_idxs,
                                                          device, verbose)
@@ -250,7 +283,7 @@ class TransformerSimpleCaptioner(_TransformerCaptioner):
         return self.decoder(e, v2, tgt_mask=mask)
 
 
-class TransformerCaptioner(TransformerSimpleCaptioner):
+class TransformerCaptioner(Visual_GPTSimpleCaptioner):
     def __init__(self, embeddings, feat_dim=512, max_word=32, multi_image=1, image_pe=True, layer_norm=False,
                  num_enc_layers=6, num_dec_layers=6, teacher_forcing=False, image_model=None, image_pretrained=None,
                  finetune_image=False, image_finetune_epoch=None, rl_opts=None, word_idxs=None, device='gpu',
@@ -298,29 +331,4 @@ class TransformerCaptioner(TransformerSimpleCaptioner):
         return x, mask
 
 
-class TransformerMaxDecoderLayer(TransformerDecoderLayer):
-    def forward(self, tgt, memory, tgt_mask=None, memory_mask=None, tgt_key_padding_mask=None,
-                memory_key_padding_mask=None):
-        tgt2 = self.self_attn(tgt, tgt, tgt, attn_mask=tgt_mask, key_padding_mask=tgt_key_padding_mask)[0]
-        tgt = tgt + self.dropout1(tgt2)
-        tgt = self.norm1(tgt)
-        if len(memory.shape) == 4:
-            tgt_stack = []
-            for i in range(memory.shape[0]):
-                tgt2 = self.multihead_attn(tgt, memory[i], memory[i], attn_mask=memory_mask,
-                                           key_padding_mask=memory_key_padding_mask)[0]
-                tgt_stack.append(tgt2)
-            tgt_stack = torch.stack(tgt_stack, dim=0)
-            tgt2, _ = torch.max(tgt_stack, dim=0)
-        else:
-            tgt2 = self.multihead_attn(tgt, memory, memory, attn_mask=memory_mask,
-                                       key_padding_mask=memory_key_padding_mask)[0]
-        tgt = tgt + self.dropout2(tgt2)
-        tgt = self.norm2(tgt)
-        if hasattr(self, "activation"):
-            tgt2 = self.linear2(self.dropout(self.activation(self.linear1(tgt))))
-        else:  # for backward compatibility
-            tgt2 = self.linear2(self.dropout(relu(self.linear1(tgt))))
-        tgt = tgt + self.dropout3(tgt2)
-        tgt = self.norm3(tgt)
-        return tgt
+

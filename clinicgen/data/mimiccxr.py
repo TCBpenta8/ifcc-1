@@ -88,6 +88,7 @@ class MIMICCXRData(_RadiologyReportData):
                     self.ids.append(did)
                     self.doc_ids.append(sid)
 
+
                     image_path = row['image_path'][0]
 
                     # image
